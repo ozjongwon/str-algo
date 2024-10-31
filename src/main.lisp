@@ -41,6 +41,44 @@
                         (>= y m))
                 do (return-from myers-distance d))
             finally (return :fail)))))
+;; V4
+(defun myers-distance (str1 str2)
+  (let* ((n (length str1))
+         (m (length str2))
+         (max-d (+ n m))
+         (v-size (1+ (* max-d 2)))
+         ;; v stores the latest x for each k, k can be -max <= k <= max
+         ;; v[1] = 0
+         (v (make-array v-size :initial-element -1 :element-type 'integer)))
+    (flet ((vget (i)
+             (if (minusp i)
+                 (aref v (+ v-size i))
+                 (aref v i)))
+           (vset (i val)
+             (if (minusp i)
+                 (setf (aref v (+ v-size i)) val)
+                 (setf (aref v i) val))))
+      (vset 1 0) ;; start point
+      (loop for d from 0 to max-d do
+        (loop with x and y
+              for k integer from (- d) to d by 2
+              do (setf x (if (or (= k (- d))
+                                 (and (/= k d)
+                                      (< (vget (1- k)) (vget (1+ k)))))
+                             (vget (1+ k))
+                             (1+ (vget (1- k))))
+                       y (- x k))
+                 (loop while (and (< x n)
+                                  (< y m)
+                                  (char= (aref str1 x)
+                                         (aref str2 y)))
+                       do (incf x)
+                          (incf y))
+                 (vset k x)
+              when (and (>= x n)
+                        (>= y m))
+                do (return-from myers-distance d))
+            finally (return :fail)))))
 ;; V2
 
 ;; The goal is to build an array of (k, d) dimension, which has 'x'.
@@ -102,7 +140,7 @@
                     do (push dkxy-list dkxy-history)
                        (return-from  myers-distance dkxy-history)
                   finally (push dkxy-list dkxy-history))
-            finally (return :fail)))))
+            finally (return (or dkxy-history :fail))))))
 ;; V1
 (defun diff-operations (str1 str2)
   (let ((history (myers-distance str1 str2)))
