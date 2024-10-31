@@ -14,6 +14,14 @@
 ;; 'delete'(RIGHT OP), otherwise use previous value as the new x. So 'insert'
 ;; preferred.
 ;;
+;; To transform str1 to str2, 'delete' refers the index of str1, and 'insert'
+;; refers the index of str2
+;;
+
+(defun pick-best-xy (xy-list)
+  (first (sort xy-list #'(lambda (a b)
+                           (> (apply #'+ a)
+                              (apply #'+ b))))))
 
 (defun myers-distance (str1 str2)
   (let* ((n (length str1))
@@ -51,39 +59,96 @@
                               do (incf x)
                                  (incf y))
                         (vset k x)
-                        ;; (format t "~%*** (d k x y) = (~A ~A ~A ~A) k-vec: ~A"
-                        ;;         d k x y k-vec)
                         (progn
                           (setf xy-list (delete-if #'(lambda (xy)
                                                        (> x (first xy)))
                                                    xy-list))
                           (push (list x y) xy-list))
                      when (and (>= x n) (>= y m))
-                       do (push (first (sort xy-list #'(lambda (a b)
-                                                         (> (apply #'+ a)
-                                                            (apply #'+ b)))))
-                                xy-history)
+                       do (push (pick-best-xy xy-list) xy-history)
                           (return-from  myers-distance xy-history)
-                     finally (push (first (sort xy-list #'(lambda (a b)
-                                                            (> (apply #'+ a)
-                                                               (apply #'+ b)))))
-                                   xy-history))
+                     finally (push (pick-best-xy xy-list) xy-history))
             finally (return (or xy-history :fail))))))
 
-;; V3
 (defun diff-operations (str1 str2)
   (let ((history (myers-distance str1 str2)))
-    (destructuring-bind (((prev-x prev-y)) &rest more-history)
-        history
-      (loop for (xy-list &rest more-xy-list) = more-history then more-xy-list
-            do (format t "~%*** ~A ~A" x y)
-            if (and (= prev-x x) (= prev-y (1+ y)))
-              collect :insert
-            else
-              if (and (= prev-x (1+ x)) (= prev-y y))
-                collect :delete
-            else
-              append (loop for keep-x = prev-x then (1- keep-x)
-                           and keep-y = prev-y then (1- keep-y)
-                           collect :keep 
-                           until (or (= keep-x x) (= keep-y y)))))))
+    (labels ((build-operations (prev-x prev-y xy-list operations)
+               (if (null xy-list)
+                   operations
+                   (destructuring-bind ((x y) &rest more-xy-list)
+                       xy-list
+                     (cond ((and (= prev-x x) (= prev-y (1+ y)))
+                            (build-operations x y more-xy-list
+                                              (cons (list :insert x y)
+                                                    operations)))
+
+                           ((and (= prev-x (1+ x)) (= prev-y y))
+                            (build-operations x y more-xy-list
+                                              (cons (list :delete x y)
+                                                    operations)))
+                           (:else 
+                            (build-operations (1- prev-x) (1- prev-y) xy-list
+                                              (cons (list :keep (1- prev-x) (1- prev-y))
+                                                    operations))))))))
+      (destructuring-bind (prev-x prev-y)
+          (first history)
+        (build-operations prev-x prev-y (rest history) ())))))
+
+;; ;; ============= Ukkonen's Algorithm =============
+
+;; (defstruct (dp-cell (:type list))
+;;   cost
+;;   operation)
+
+;; (defun make-dp-matrix (rows cols)
+;;   (let ((matrix (make-array (list rows cols))))
+;;     ;; Initialize first row and column
+;;     (loop for i from 0 below rows do
+;;       (setf (aref matrix i 0)
+;;             (make-dp-cell :cost i :operation :delete)))
+;;     (loop for j from 0 below cols do
+;;       (setf (aref matrix 0 j)
+;;             (make-dp-cell :cost j :operation :insert)))
+;;     matrix))
+
+;; (defun ukkonen-distance (str1 str2)
+;;   "Non-optimized implementation of Ukkonen's algorithm"
+;;   (let* ((m (1+ (length str1)))
+;;          (n (1+ (length str2)))
+;;          (dp (make-dp-matrix m n))
+;;          (operations nil))
+
+;;     (loop for i from 1 below m do
+;;       (loop for j from 1 below n do
+;;         (let* ((char1 (char str1 (1- i)))
+;;                (char2 (char str2 (1- j)))
+;;                (match-cost (if (char= char1 char2) 0 1))
+;;                (costs (list (+ (dp-cell-cost (aref dp (1- i) j)) 1)      ; deletion
+;;                             (+ (dp-cell-cost (aref dp i (1- j))) 1)      ; insertion
+;;                             (+ (dp-cell-cost (aref dp (1- i) (1- j)))    ; replace/match
+;;                                match-cost)))
+;;                (min-cost (apply #'min costs))
+;;                (operation (case (position min-cost costs)
+;;                             (0 :delete)
+;;                             (1 :insert)
+;;                             (2 (if (zerop match-cost) :keep :replace)))))
+;;           (setf (aref dp i j)
+;;                 (make-dp-cell :cost min-cost :operation operation)))))
+
+;;     ;; Backtrack to get operations
+;;     (let ((i (1- m))
+;;           (j (1- n)))
+;;       (loop while (and (>= i 0) (>= j 0)) do
+;;         (let ((cell (aref dp i j)))
+;;           (push (list (dp-cell-operation cell) (1- i) (1- j))
+;;                 operations)
+;;           (case (dp-cell-operation cell)
+;;             (:keep (decf i) (decf j))
+;;             (:replace (decf i) (decf j))
+;;             (:delete (decf i))
+;;             (:insert (decf j))))))
+
+;;     ;; Return edit distance and operations
+;;     (values (dp-cell-cost (aref dp (1- m) (1- n)))
+;;             (reverse operations))))
+
