@@ -67,12 +67,9 @@
                  (aref k-vec (+ v-size i))
                  (aref k-vec i)))
            (vset (i val)
-             ;;             (format t "~%*** (BEFORE)SET ~A ~A->~A ~A" k-vec i (+ i max-d) val)
              (if (minusp i)
                  (setf (aref k-vec (+ v-size i)) val)
-                 (setf (aref k-vec i) val))
-             ;;             (format t "~%*** (AFTER)SET ~A ~A->~A ~A" k-vec i (+ i max-d) val)
-             ))
+                 (setf (aref k-vec i) val))))
       (loop initially (vset 1 0) ;; coord (0,0) = 0
             for d from 0 below max-d do
               (loop with x and y
@@ -80,69 +77,19 @@
                     do (setf x (if (or (zerop (+ d k))
                                        (and (/= k d)
                                             (< (vget (1- k)) (vget (1+ k)))))
-                                   (progn
-                                     ;;                                     (format t "~%*** REUSE PREV X = ~A, d = ~A, k = ~A >>> ~A" (vget (1+ k)) d k k-vec)
-                                     (vget (1+ k))) ;; use previous x
+                                   (vget (1+ k)) ;; use previous x
                                    ;; new x, insert first
-                                   (progn
-                                     ;;                                     (format t "~%*** INSERT X = ~A, d = ~A, k = ~A" (1+ (vget (1- k))) d k)
-                                     (1+ (vget (1- k)))))
+                                   (1+ (vget (1- k))))
                              y (- x k))
-                       ;;                     (format t "~%*** Current x=~A, y=~A" x y)
                        (loop while (and (< x n)
                                         (< y m)
                                         (char= (aref str1 x)
                                                (aref str2 y)))
-                             do ;;(format t "~%*** Keep char1 = ~A, char2 = ~A" (aref str1 x) (aref str2 y))
-                                (incf x)
+                             do (incf x)
                                 (incf y))
                        (vset k x)
-                       (format t "~%*** k = ~A : k-vec: ~A" k k-vec)
-                    when (and (>= x n)
-                              (>= y m))
-                      do (return-from myers-distance d))
-            finally (return :fail)))))
-
-;; V3
-(defun myers-distance (str1 str2)
-  (let* ((n (length str1))
-         (m (length str2))
-         (max-d (+ n m))
-         ;; v stores the latest x for each k, k can be -max <= k <= max
-         ;; v[1] = 0
-         (k-vec (make-array (1+ (* max-d 2)) :initial-element -1 :element-type 'integer)))
-    (flet ((vget (i)
-             (aref k-vec (+ i max-d)))
-           (vset (i val)
-             ;;             (format t "~%*** (BEFORE)SET ~A ~A->~A ~A" k-vec i (+ i max-d) val)
-             (setf (aref k-vec (+ i max-d)) val)
-             ;;             (format t "~%*** (AFTER)SET ~A ~A->~A ~A" k-vec i (+ i max-d) val)
-             ))
-      (loop initially (vset 0 0) ;; coord (0,0) = 0
-            for d from 1 below max-d do
-              (loop with x and y
-                    for k integer from (- d) to d by 2
-                    do (setf x (if (or (zerop (+ d k))
-                                       (and (/= k d)
-                                            (< (vget (1- k)) (vget (1+ k)))))
-                                   (progn
-                                     (format t "~%*** REUSE PREV X = ~A, d = ~A, k = ~A" (vget (1+ k)) d k)
-                                     (vget (1+ k))) ;; use previous x
-                                   ;; new x, insert first
-                                   (progn
-                                     ;;                                     (format t "~%*** INSERT X = ~A, d = ~A, k = ~A" (1+ (vget (1- k))) d k)
-                                     (1+ (vget (1- k)))))
-                             y (- x k))
-                       (format t "~%*** Current x=~A, y=~A" x y)
-                       (loop while (and (< x n)
-                                        (< y m)
-                                        (char= (aref str1 x)
-                                               (aref str2 y)))
-                             do ;;(format t "~%*** Keep char1 = ~A, char2 = ~A" (aref str1 x) (aref str2 y))
-                                (incf x)
-                                (incf y))
-                       (vset k x)
-                       (format t "~%*** k = ~A : k-vec: ~A" k k-vec)
+                       (format t "~%*** (d k x y) = (~A ~A ~A ~A) k-vec: ~A"
+                               d k x y k-vec)
                     when (and (>= x n)
                               (>= y m))
                       do (return-from myers-distance d))
