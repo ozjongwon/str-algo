@@ -32,10 +32,10 @@
                  (setf (aref k-vec (+ v-size i)) val)
                  (setf (aref k-vec i) val))))
       (loop initially (vset 1 0) ;; coord (0,0) = 0
-            with dkxy-history
+            with xy-history
             for d from 0 to max-d
             do
-               (loop with x and y and dkxy-list
+               (loop with x and y and xy-list
                      for k integer from (- d) to d by 2
                      do (setf x (if (or (zerop (+ d k))
                                         (and (/= k d)
@@ -51,52 +51,49 @@
                               do (incf x)
                                  (incf y))
                         (vset k x)
-                        (format t "~%*** (d k x y) = (~A ~A ~A ~A) k-vec: ~A"
-                                d k x y k-vec)
+                        ;; (format t "~%*** (d k x y) = (~A ~A ~A ~A) k-vec: ~A"
+                        ;;         d k x y k-vec)
                         (progn
-                          (setf dkxy-list (delete-if #'(lambda (dkxy)
-                                                         (and (= d (first dkxy))
-                                                              (> x (third dkxy))))
-                                                     dkxy-list))
-                          (push (list d k x y) dkxy-list))
+                          (setf xy-list (delete-if #'(lambda (xy)
+                                                       (> x (first xy)))
+                                                   xy-list))
+                          (push (list x y) xy-list))
                      when (and (>= x n) (>= y m))
-                       do (push dkxy-list dkxy-history)
-                          (return-from  myers-distance dkxy-history)
-                     finally (push dkxy-list dkxy-history))
-            finally (return (or dkxy-history :fail))))))
+                       do (push xy-list xy-history)
+                          (return-from  myers-distance xy-history)
+                     finally (push xy-list xy-history))
+            finally (return (or xy-history :fail))))))
 
 ;; V2
 (defun diff-operations (str1 str2)
   (let ((history (myers-distance str1 str2)))
-    (destructuring-bind (((prev-d prev-k prev-x prev-y)) &rest more-history)
+    (destructuring-bind (((prev-x prev-y)) &rest more-history)
         history
-      (format t "~&111 ~A ~A ~A ~A" prev-d prev-k prev-x prev-y)
+      (format t "~&111 ~A ~A" prev-x prev-y)
       (cons (caar history)
-            (loop for dkxy-list in more-history
-                  as next-step = (if (null (cdr dkxy-list))
-                                     (first dkxy-list)
-                                     (find (1- prev-y) dkxy-list :test #'= :key #'fourth))
-                  do (format t "~&2222 ~A ~A ~A ~A ~A ~A" dkxy-list next-step prev-d prev-k prev-x prev-y)
-                     (setf prev-d (first next-step)
-                           prev-k (second next-step)
-                           prev-x (third next-step)
-                           prev-y (fourth next-step))
+            (loop for xy-list in more-history
+                  as next-step = (if (null (cdr xy-list))
+                                     (first xy-list)
+                                     (find (1- prev-y) xy-list :test #'= :key #'second))
+                  do (format t "~&2222 ~A ~A ~A ~A" xy-list next-step prev-x prev-y)
+                     (setf prev-x (first next-step)
+                           prev-y (second next-step))
                   collect next-step)))))
 
 ;; V3
 (defun diff-operations (str1 str2)
   (let ((history (myers-distance str1 str2)))
-    (destructuring-bind (((prev-d prev-k prev-x prev-y)) &rest more-history)
+    (destructuring-bind (((prev-x prev-y)) &rest more-history)
         history
-      (format t "~&111 ~A ~A ~A ~A" prev-d prev-k prev-x prev-y)
-      (cons (caar history)
-            (loop for dkxy-list in more-history
-                  as next-step = (if (null (cdr dkxy-list))
-                                     (first dkxy-list)
-                                     (find (1- prev-y) dkxy-list :test #'= :key #'fourth))
-                  do (format t "~&2222 ~A ~A ~A ~A ~A ~A" dkxy-list next-step prev-d prev-k prev-x prev-y)
-                     (setf prev-d (first next-step)
-                           prev-k (second next-step)
-                           prev-x (third next-step)
-                           prev-y (fourth next-step))
-                  collect next-step)))))
+      (loop for (xy-list &rest more-xy-list) = more-history then more-xy-list
+            do (format t "~%*** ~A ~A" x y)
+            if (and (= prev-x x) (= prev-y (1+ y)))
+              collect :insert
+            else
+              if (and (= prev-x (1+ x)) (= prev-y y))
+                collect :delete
+            else
+              append (loop for keep-x = prev-x then (1- keep-x)
+                           and keep-y = prev-y then (1- keep-y)
+                           collect :keep 
+                           until (or (= keep-x x) (= keep-y y)))))))
