@@ -20,8 +20,9 @@
 
 (defun pick-best-xy (xy-list)
   (first (sort xy-list #'(lambda (a b)
-                           (> (apply #'+ a)
-                              (apply #'+ b))))))
+                           (and (>= (first a) (first b))
+                                (> (apply #'+ a)
+                                   (apply #'+ b)))))))
 
 (defun myers-distance (str1 str2)
   (let* ((n (length str1))
@@ -59,11 +60,7 @@
                               do (incf x)
                                  (incf y))
                         (vset k x)
-                        (progn
-                          (setf xy-list (delete-if #'(lambda (xy)
-                                                       (> x (first xy)))
-                                                   xy-list))
-                          (push (list x y) xy-list))
+                        (push (list x y) xy-list)
                      when (and (>= x n) (>= y m))
                        do (push (pick-best-xy xy-list) xy-history)
                           (return-from  myers-distance xy-history)
