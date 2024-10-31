@@ -59,26 +59,16 @@
                                                    xy-list))
                           (push (list x y) xy-list))
                      when (and (>= x n) (>= y m))
-                       do (push xy-list xy-history)
+                       do (push (first (sort xy-list #'(lambda (a b)
+                                                         (> (apply #'+ a)
+                                                            (apply #'+ b)))))
+                                xy-history)
                           (return-from  myers-distance xy-history)
-                     finally (push xy-list xy-history))
+                     finally (push (first (sort xy-list #'(lambda (a b)
+                                                            (> (apply #'+ a)
+                                                               (apply #'+ b)))))
+                                   xy-history))
             finally (return (or xy-history :fail))))))
-
-;; V2
-(defun diff-operations (str1 str2)
-  (let ((history (myers-distance str1 str2)))
-    (destructuring-bind (((prev-x prev-y)) &rest more-history)
-        history
-      (format t "~&111 ~A ~A" prev-x prev-y)
-      (cons (caar history)
-            (loop for xy-list in more-history
-                  as next-step = (if (null (cdr xy-list))
-                                     (first xy-list)
-                                     (find (1- prev-y) xy-list :test #'= :key #'second))
-                  do (format t "~&2222 ~A ~A ~A ~A" xy-list next-step prev-x prev-y)
-                     (setf prev-x (first next-step)
-                           prev-y (second next-step))
-                  collect next-step)))))
 
 ;; V3
 (defun diff-operations (str1 str2)
