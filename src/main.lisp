@@ -18,27 +18,6 @@
 ;; refers the index of str2
 ;;
 
-(defun build-operations (xy-distance-list)
-  (labels ((recur (prev-x prev-y xy-list next-xy-distance-list op-list)
-             (if (null xy-list)
-                 op-list
-                 (uiop:if-let (found (find (list prev-x (1- prev-y)) xy-list :test #'equal))
-                   (recur (first found) (second found) (first next-xy-distance-list)
-                          (rest next-xy-distance-list)
-                          (cons (cons :insert found) op-list))
-                   (uiop:if-let (found (find (list (1- prev-x) prev-y) xy-list :test #'equal))
-                     (recur (first found) (second found) (first next-xy-distance-list)
-                            (rest next-xy-distance-list)
-                            (cons (list :delete (1- prev-x) prev-y) op-list))
-                     (recur (1- prev-x) (1- prev-y) xy-list next-xy-distance-list
-                            (cons (list :keep (1- prev-x) (1- prev-y)) op-list)))))))
-    (if (null (cdr xy-distance-list))
-        :match
-        (recur (caaar xy-distance-list) 
-               (cadaar xy-distance-list)
-               (second xy-distance-list)
-               (cddr xy-distance-list) ()))))
-
 (defun myers-distance (str1 str2)
   (let* ((n (length str1))
          (m (length str2))
@@ -77,10 +56,33 @@
                         (push (list x y) xy-list)
                      when (and (>= x n) (>= y m))
                        do (push xy-list xy-history)
-                          (return-from  myers-distance (build-operations xy-history))
+                          (return-from  myers-distance xy-history)
                      finally (push xy-list xy-history))
             finally (return (or xy-history :fail))))))
 
+(defun build-operations (xy-distance-list)
+  (labels ((recur (prev-x prev-y xy-list next-xy-distance-list op-list)
+             (if (null xy-list)
+                 op-list
+                 (uiop:if-let (found (find (list prev-x (1- prev-y)) xy-list :test #'equal))
+                   (recur (first found) (second found) (first next-xy-distance-list)
+                          (rest next-xy-distance-list)
+                          (cons (cons :insert found) op-list))
+                   (uiop:if-let (found (find (list (1- prev-x) prev-y) xy-list :test #'equal))
+                     (recur (first found) (second found) (first next-xy-distance-list)
+                            (rest next-xy-distance-list)
+                            (cons (list :delete (1- prev-x) prev-y) op-list))
+                     (recur (1- prev-x) (1- prev-y) xy-list next-xy-distance-list
+                            (cons (list :keep (1- prev-x) (1- prev-y)) op-list)))))))
+    (if (null (cdr xy-distance-list))
+        :match
+        (recur (caaar xy-distance-list) 
+               (cadaar xy-distance-list)
+               (second xy-distance-list)
+               (cddr xy-distance-list) ()))))
+
+(defun diff-operations (str1 str2)
+  (build-operations (myers-distance str1 str2)))
 
 ;; ;; ============= Ukkonen's Algorithm =============
 
