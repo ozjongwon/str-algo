@@ -18,11 +18,26 @@
 ;; refers the index of str2
 ;;
 
-(defun pick-best-xy (xy-list)
-  (first (sort xy-list #'(lambda (a b)
-                           (and (>= (first a) (first b))
-                                (> (apply #'+ a)
-                                   (apply #'+ b)))))))
+(defun build-operations (xy-distance-list)
+  (labels ((recur (prev-x prev-y xy-list next-xy-distance-list op-list)
+             (if (null xy-list)
+                 op-list
+                 (uiop:if-let (found (find (list prev-x (1- prev-y)) xy-list :test #'equal))
+                   (recur (first found) (second found) (first next-xy-distance-list)
+                          (rest next-xy-distance-list)
+                          (cons (cons :insert found) op-list))
+                   (uiop:if-let (found (find (list (1- prev-x) prev-y) xy-list :test #'equal))
+                     (recur (first found) (second found) (first next-xy-distance-list)
+                            (rest next-xy-distance-list)
+                            (cons (list :delete (1- prev-x) prev-y) op-list))
+                     (recur (1- prev-x) (1- prev-y) xy-list next-xy-distance-list
+                            (cons (list :keep (1- prev-x) (1- prev-y)) op-list)))))))
+    (if (null (cdr xy-distance-list))
+        :match
+        (recur (caaar xy-distance-list) 
+               (cadaar xy-distance-list)
+               (second xy-distance-list)
+               (cddr xy-distance-list) ()))))
 
 (defun myers-distance (str1 str2)
   (let* ((n (length str1))
@@ -33,21 +48,21 @@
          ;; v[1] = 0
          (k-vec (make-array v-size :initial-element -1 :element-type 'integer)))
     (flet ((vget (i)
-             (if (minusp i)
-                 (aref k-vec (+ v-size i))
-                 (aref k-vec i)))
+             (aref k-vec (if (minusp i)
+                             (+ v-size i)
+                             i)))
            (vset (i val)
-             (if (minusp i)
-                 (setf (aref k-vec (+ v-size i)) val)
-                 (setf (aref k-vec i) val))))
+             (setf (aref k-vec (if (minusp i)
+                                   (+ v-size i)
+                                   i))
+                   val)))
       (loop initially (vset 1 0) ;; coord (0,0) = 0
             with xy-history
             for d from 0 to max-d
-            do
-               (loop with x and y and xy-list
+            do (loop with x and y and xy-list
                      for k integer from (- d) to d by 2
                      do (setf x (if (or (zerop (+ d k))
-                                        (and (/= k d)
+                                        (and (/= d k)
                                              (< (vget (1- k)) (vget (1+ k)))))
                                     (vget (1+ k)) ;; use previous x
                                     ;; new x, insert first
@@ -55,41 +70,17 @@
                               y (- x k))
                         (loop while (and (< x n)
                                          (< y m)
-                                         (char= (aref str1 x)
-                                                (aref str2 y)))
+                                         (char= (aref str1 x) (aref str2 y)))
                               do (incf x)
                                  (incf y))
                         (vset k x)
                         (push (list x y) xy-list)
                      when (and (>= x n) (>= y m))
-                       do (push (pick-best-xy xy-list) xy-history)
-                          (return-from  myers-distance xy-history)
-                     finally (push (pick-best-xy xy-list) xy-history))
+                       do (push xy-list xy-history)
+                          (return-from  myers-distance (build-operations xy-history))
+                     finally (push xy-list xy-history))
             finally (return (or xy-history :fail))))))
 
-(defun diff-operations (str1 str2)
-  (let ((history (myers-distance str1 str2)))
-    (labels ((build-operations (prev-x prev-y xy-list operations)
-               (if (null xy-list)
-                   operations
-                   (destructuring-bind ((x y) &rest more-xy-list)
-                       xy-list
-                     (cond ((and (= prev-x x) (= prev-y (1+ y)))
-                            (build-operations x y more-xy-list
-                                              (cons (list :insert x y)
-                                                    operations)))
-
-                           ((and (= prev-x (1+ x)) (= prev-y y))
-                            (build-operations x y more-xy-list
-                                              (cons (list :delete x y)
-                                                    operations)))
-                           (:else 
-                            (build-operations (1- prev-x) (1- prev-y) xy-list
-                                              (cons (list :keep (1- prev-x) (1- prev-y))
-                                                    operations))))))))
-      (destructuring-bind (prev-x prev-y)
-          (first history)
-        (build-operations prev-x prev-y (rest history) ())))))
 
 ;; ;; ============= Ukkonen's Algorithm =============
 
