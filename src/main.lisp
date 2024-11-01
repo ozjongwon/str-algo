@@ -73,7 +73,7 @@
                             (rest next-xy-distance-list)
                             (cons (list :delete (1- prev-x) prev-y) op-list))
                      (recur (1- prev-x) (1- prev-y) xy-list next-xy-distance-list
-                            (cons (list :keep (1- prev-x) (1- prev-y)) op-list)))))))
+                            op-list))))))
     (if (null (cdr xy-distance-list))
         :match
         (recur (caaar xy-distance-list) 
