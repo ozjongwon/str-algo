@@ -27,14 +27,9 @@
          ;; v[1] = 0
          (k-vec (make-array v-size :initial-element -1 :element-type 'integer)))
     (flet ((vget (i)
-             (aref k-vec (if (minusp i)
-                             (+ v-size i)
-                             i)))
+             (aref k-vec (+ i max-d)))
            (vset (i val)
-             (setf (aref k-vec (if (minusp i)
-                                   (+ v-size i)
-                                   i))
-                   val)))
+             (setf (aref k-vec (+ i max-d)) val)))
       (loop initially (vset 1 0) ;; coord (0,0) = 0
             with xy-history
             for d from 0 to max-d
