@@ -7,7 +7,7 @@
 ;; The goal is to build an array of (k, d) dimension, which has 'x'.
 ;; Each 'd' round, the array transforms and the final one has the size of string 'x'.
 ;; At that point, 'd', is the min 'distance'.
-;; To get all the required transform operations, need to keep the changes of the arrary.
+;; To get all the required transform operations, need to keep the changes of the array.
 ;;
 ;; In the transform graph, moving x(right) direction, is 'delete' op,
 ;; y(down) is 'insert', and x-y(diagonal) is 'keep'. Only compute the new x for
